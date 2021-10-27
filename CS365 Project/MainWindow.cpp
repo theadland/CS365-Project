@@ -60,10 +60,8 @@ HRESULT MainWindow::Initialize()
 		//
 		// Because the CreateWindow function takes its size in pixels, we
 		// obtain the system DPI and use it to scale the window size.
-		//FLOAT dpiX, dpiY;
-		//m_pD2DFactory->GetDesktopDpi(&dpiX, &dpiY);
 
-		UINT dpi = GetDpiForWindow(m_hwnd);
+		UINT dpi = GetDpiForSystem();
 
 		// Create the application window.
 		m_hwnd = CreateWindow(
@@ -260,6 +258,7 @@ HRESULT MainWindow::CreateDeviceResources()
 			0,
 			&m_pBitmap
 		);
+
 		if (SUCCEEDED(hr))
 		{
 			// Create a bitmap by loading it from a file.
@@ -384,7 +383,6 @@ HRESULT MainWindow::OnRender()
 			D2D1::RectF(0.0f, 0.0f, size.width, size.height)
 		);
 
-
 		// Draw a bitmap at the lower-right corner of the window.
 		size = m_pAnotherBitmap->GetSize();
 		m_pRenderTarget->DrawBitmap(
@@ -431,6 +429,8 @@ HRESULT MainWindow::OnRender()
 		// Fill the hour glass geometry with a gradient.
 		m_pRenderTarget->FillGeometry(m_pPathGeometry, m_pLinearGradientBrush);
 
+		
+
 		hr = m_pRenderTarget->EndDraw();
 
 		if (hr == D2DERR_RECREATE_TARGET)
@@ -460,7 +460,14 @@ void MainWindow::OnResize(UINT width, UINT height)
 	}
 }
 
-HRESULT MainWindow::LoadResourceBitmap(ID2D1RenderTarget* pRenderTarget, IWICImagingFactory* pIWICFactory, PCWSTR resourceName, PCWSTR resourceType, UINT destinationWidth, UINT destinationHeight, ID2D1Bitmap** ppBitmap)
+HRESULT MainWindow::LoadResourceBitmap(
+	ID2D1RenderTarget* pRenderTarget, 
+	IWICImagingFactory* pIWICFactory, 
+	PCWSTR resourceName, 
+	PCWSTR resourceType, 
+	UINT destinationWidth, 
+	UINT destinationHeight, 
+	ID2D1Bitmap** ppBitmap)
 {
 	HRESULT hr = S_OK;
 	IWICBitmapDecoder* pDecoder = NULL;
