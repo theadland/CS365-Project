@@ -78,6 +78,8 @@ HRESULT MainWindow::Initialize()
 			this
 		);
 
+		CreateToolBar(m_hwnd);
+
 		// Show window if created successfully
 		hResult = m_hwnd ? S_OK : E_FAIL;
 		if (SUCCEEDED(hResult))
@@ -254,7 +256,7 @@ HRESULT MainWindow::CreateDeviceResources()
 			m_pWICFactory,
 			L"SampleImage",
 			L"Image",
-			100,
+			400,
 			0,
 			&m_pBitmap
 		);
@@ -359,7 +361,7 @@ HRESULT MainWindow::OnRender()
 
 	if (SUCCEEDED(hr) && !(m_pRenderTarget->CheckWindowState() & D2D1_WINDOW_STATE_OCCLUDED))
 	{
-		static const WCHAR sc_helloWorld[] = L"Hello, World!";
+		static const WCHAR sc_helloWorld[] = L"Example Label!";
 		// Retrieve the size of the render target.
 		D2D1_SIZE_F renderTargetSize = m_pRenderTarget->GetSize();
 
@@ -380,9 +382,14 @@ HRESULT MainWindow::OnRender()
 		// Draw a bitmap in the upper-left corner of the window.
 		m_pRenderTarget->DrawBitmap(
 			m_pBitmap,
-			D2D1::RectF(0.0f, 0.0f, size.width, size.height)
+			D2D1::RectF(
+				ceil(renderTargetSize.width / 2) - ceil(size.width / 2), 
+				ceil(renderTargetSize.height / 2) - ceil(size.height / 2),
+				ceil(renderTargetSize.width / 2) + ceil(size.width / 2),
+				ceil(renderTargetSize.height / 2) + ceil(size.height / 2))
 		);
 
+		/*
 		// Draw a bitmap at the lower-right corner of the window.
 		size = m_pAnotherBitmap->GetSize();
 		m_pRenderTarget->DrawBitmap(
@@ -393,7 +400,9 @@ HRESULT MainWindow::OnRender()
 				renderTargetSize.width,
 				renderTargetSize.height)
 		);
+		*/
 
+		/*
 		// Set the world transform to a 45 degree rotation at the center of the render target
 		// and write "Hello, World".
 		m_pRenderTarget->SetTransform(
@@ -402,6 +411,11 @@ HRESULT MainWindow::OnRender()
 				D2D1::Point2F(
 					renderTargetSize.width / 2,
 					renderTargetSize.height / 2))
+		);
+		*/
+
+		m_pRenderTarget->SetTransform(
+			D2D1::Matrix3x2F::Translation(0, renderTargetSize.height / 4)
 		);
 
 		m_pRenderTarget->DrawText(
@@ -414,20 +428,6 @@ HRESULT MainWindow::OnRender()
 
 		//
 		// Reset back to the identity transform
-		//
-		m_pRenderTarget->SetTransform(
-			D2D1::Matrix3x2F::Translation(0, renderTargetSize.height - 200)
-		);
-
-		// Fill the hour glass geometry with a gradient.
-		m_pRenderTarget->FillGeometry(m_pPathGeometry, m_pLinearGradientBrush);
-
-		m_pRenderTarget->SetTransform(
-			D2D1::Matrix3x2F::Translation(renderTargetSize.width - 200, 0)
-		);
-
-		// Fill the hour glass geometry with a gradient.
-		m_pRenderTarget->FillGeometry(m_pPathGeometry, m_pLinearGradientBrush);
 
 		
 
@@ -801,4 +801,57 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 	}
 
 	return result;
+}
+
+HWND MainWindow::CreateToolBar(HWND hWndParent)
+{
+	// Declare and initialize local constants.
+	const int ImageListID = 0;
+	const int numButtons = 3;
+	const int bitmapSize = 16;
+
+	const DWORD buttonStyles = BTNS_AUTOSIZE;
+
+	// Create the toolbar.
+	HWND hWndToolbar = CreateWindowEx(0, TOOLBARCLASSNAME, NULL,
+		WS_CHILD | TBSTYLE_WRAPABLE, 0, 0, 0, 0,
+		hWndParent, NULL, HINST_THISCOMPONENT, NULL);
+
+	if (hWndToolbar == NULL)
+		return NULL;
+
+	// Create the image list.
+	g_hImageList = ImageList_Create(bitmapSize, bitmapSize,   // Dimensions of individual bitmaps.
+		ILC_COLOR16 | ILC_MASK,   // Ensures transparent background.
+		numButtons, 0);
+
+	// Set the image list.
+	SendMessage(hWndToolbar, TB_SETIMAGELIST,
+		(WPARAM)ImageListID,
+		(LPARAM)g_hImageList);
+
+	// Load the button images.
+	SendMessage(hWndToolbar, TB_LOADIMAGES,
+		(WPARAM)IDB_STD_SMALL_COLOR,
+		(LPARAM)HINST_COMMCTRL);
+
+	// Initialize button info.
+	// IDM_NEW, IDM_OPEN, and IDM_SAVE are application-defined command constants.
+
+	TBBUTTON tbButtons[numButtons] =
+	{
+		{ MAKELONG(STD_FILENEW,  ImageListID), 0,  TBSTATE_ENABLED, buttonStyles, {0}, 0, (INT_PTR)L"New" },
+		{ MAKELONG(STD_FILEOPEN, ImageListID), 0, TBSTATE_ENABLED, buttonStyles, {0}, 0, (INT_PTR)L"Open"},
+		{ MAKELONG(STD_FILESAVE, ImageListID), 0, 0,               buttonStyles, {0}, 0, (INT_PTR)L"Save"}
+	};
+
+	// Add buttons.
+	SendMessage(hWndToolbar, TB_BUTTONSTRUCTSIZE, (WPARAM)sizeof(TBBUTTON), 0);
+	SendMessage(hWndToolbar, TB_ADDBUTTONS, (WPARAM)numButtons, (LPARAM)&tbButtons);
+
+	// Resize the toolbar, and then show it.
+	SendMessage(hWndToolbar, TB_AUTOSIZE, 0, 0);
+	ShowWindow(hWndToolbar, TRUE);
+
+	return hWndToolbar;
 }

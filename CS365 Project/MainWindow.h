@@ -31,6 +31,9 @@
 #include <wincodec.h>
 #pragma comment(lib, "d2d1")
 
+#include <commctrl.h>
+#pragma comment(lib, "comctl32.lib")
+
 /******************************************************************
 *                                                                 *
 *  Macros                                                         *
@@ -125,6 +128,9 @@ public:
 	// the WindowProc function prototype
 	static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
+	// toolbar
+	HWND CreateToolBar(HWND hWndParent);
+
 private:
 	HWND m_hwnd;
 	ID2D1Factory* m_pD2DFactory;
@@ -138,5 +144,7 @@ private:
 	ID2D1BitmapBrush* m_pGridPatternBitmapBrush;
 	ID2D1Bitmap* m_pBitmap;
 	ID2D1Bitmap* m_pAnotherBitmap;
+
+	HIMAGELIST g_hImageList = NULL;
 };
 
