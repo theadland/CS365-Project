@@ -13,9 +13,14 @@ MainWindow::MainWindow() :
 	m_pLinearGradientBrush(NULL),
 	m_pBlackBrush(NULL),
 	m_pGridPatternBitmapBrush(NULL),
+	m_pBlankBackgroundBrush(NULL),
+	m_pCircleBitmapBrush(NULL),
 	m_pBitmap(NULL),
 	m_pAnotherBitmap(NULL)
+
+
 {
+	showImage = false;
 }
 
 MainWindow::~MainWindow()
@@ -30,6 +35,8 @@ MainWindow::~MainWindow()
 	SafeRelease(&m_pLinearGradientBrush);
 	SafeRelease(&m_pBlackBrush);
 	SafeRelease(&m_pGridPatternBitmapBrush);
+	SafeRelease(&m_pBlankBackgroundBrush);
+	SafeRelease(&m_pCircleBitmapBrush);
 	SafeRelease(&m_pBitmap);
 	SafeRelease(&m_pAnotherBitmap);
 }
@@ -50,7 +57,7 @@ HRESULT MainWindow::Initialize()
 		wcex.cbWndExtra = sizeof(LONG_PTR);
 		wcex.hInstance = HINST_THISCOMPONENT;
 		wcex.hbrBackground = NULL;
-		wcex.lpszMenuName = NULL;
+		wcex.lpszMenuName = MAKEINTRESOURCEW(TOOLBAR_DROPDOWN_MENU);
 		wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
 		wcex.lpszClassName = L"CLassApp";
 
@@ -60,7 +67,6 @@ HRESULT MainWindow::Initialize()
 		//
 		// Because the CreateWindow function takes its size in pixels, we
 		// obtain the system DPI and use it to scale the window size.
-
 		UINT dpi = GetDpiForSystem();
 
 		// Create the application window.
@@ -77,8 +83,6 @@ HRESULT MainWindow::Initialize()
 			HINST_THISCOMPONENT,
 			this
 		);
-
-		CreateToolBar(m_hwnd);
 
 		// Show window if created successfully
 		hResult = m_hwnd ? S_OK : E_FAIL;
@@ -276,6 +280,8 @@ HRESULT MainWindow::CreateDeviceResources()
 		if (SUCCEEDED(hr))
 		{
 			hr = CreateGridPatternBrush(m_pRenderTarget, &m_pGridPatternBitmapBrush);
+			hr = CreateBlankBackgroundBitmap(m_pRenderTarget, &m_pBlankBackgroundBrush);
+			hr = CreateCircleBrush(m_pRenderTarget, &m_pCircleBitmapBrush);
 		}
 	}
 
@@ -331,6 +337,86 @@ HRESULT MainWindow::CreateGridPatternBrush(ID2D1RenderTarget* pRenderTarget, ID2
 	return hr;
 }
 
+HRESULT MainWindow::CreateBlankBackgroundBitmap(ID2D1RenderTarget* pRenderTarget, ID2D1BitmapBrush** ppBitmapBrush)
+{
+	HRESULT hr = S_OK;
+
+	// Create a compatible render target.
+	ID2D1BitmapRenderTarget* pCompatibleRenderTarget = NULL;
+	hr = pRenderTarget->CreateCompatibleRenderTarget(
+		D2D1::SizeF(400.0f, 400.0f),
+		&pCompatibleRenderTarget);
+
+	// Draw a pattern.
+	ID2D1SolidColorBrush* pSolidBrush = NULL;
+	hr = pCompatibleRenderTarget->CreateSolidColorBrush(
+		D2D1::ColorF(D2D1::ColorF::AntiqueWhite),
+		&pSolidBrush
+	);
+
+	// File rendertarget with solid color
+	pCompatibleRenderTarget->BeginDraw();
+	pCompatibleRenderTarget->FillRectangle(D2D1::RectF(0.0f, 0.0f, 400.0f, 400.0f), pSolidBrush);
+	pCompatibleRenderTarget->EndDraw();
+
+	// Retrieve the bitmap from the render target.
+	hr = pCompatibleRenderTarget->GetBitmap(&pBackgroundBitmap);
+
+	return hr;
+}
+
+HRESULT MainWindow::CreateCircleBrush(ID2D1RenderTarget* pRenderTarget, ID2D1BitmapBrush** ppBitmapBrush)
+{
+	HRESULT hr = S_OK;
+
+	// Create a compatible render target.
+	ID2D1BitmapRenderTarget* pCompatibleRenderTarget = NULL;
+	hr = pRenderTarget->CreateCompatibleRenderTarget(
+		D2D1::SizeF(10.0f, 10.0f),
+		&pCompatibleRenderTarget
+	);
+	if (SUCCEEDED(hr))
+	{
+		// Draw a pattern.
+		ID2D1SolidColorBrush* pCricleBrush = NULL;
+		hr = pCompatibleRenderTarget->CreateSolidColorBrush(
+			D2D1::ColorF(D2D1::ColorF(D2D1::ColorF::White)),
+			&pCricleBrush
+		);
+
+		// Define a rounded rectangle.
+		D2D1_ROUNDED_RECT roundedRect = D2D1::RoundedRect(
+			D2D1::RectF(20.f, 20.f, 150.f, 100.f),
+			10.f,
+			10.f
+		);
+
+		// Draw the rectangle.
+		pCompatibleRenderTarget->DrawRoundedRectangle(roundedRect, m_pBlackBrush, 10.f);
+
+		// Retrieve the bitmap from the render target.
+		ID2D1Bitmap* pCircleBrushBitmap = NULL;
+		hr = pCompatibleRenderTarget->GetBitmap(&pCircleBrushBitmap);
+		if (SUCCEEDED(hr))
+		{
+			// Choose the tiling mode for the bitmap brush.
+			D2D1_BITMAP_BRUSH_PROPERTIES brushProperties =
+				D2D1::BitmapBrushProperties(D2D1_EXTEND_MODE_CLAMP, D2D1_EXTEND_MODE_CLAMP);
+
+			// Create the bitmap brush.
+			hr = m_pRenderTarget->CreateBitmapBrush(pCircleBrushBitmap, brushProperties, ppBitmapBrush);
+
+			pCircleBrushBitmap->Release();
+		}
+
+		pCricleBrush->Release();
+	}
+
+	pCompatibleRenderTarget->Release();
+
+	return hr;
+}
+
 //  Discard device-specific resources which need to be recreated
 //  when a Direct3D device is lost
 void MainWindow::DiscardDeviceResources()
@@ -377,17 +463,33 @@ HRESULT MainWindow::OnRender()
 			m_pGridPatternBitmapBrush
 		);
 
-		D2D1_SIZE_F size = m_pBitmap->GetSize();
+		// Paint the initial blank image background.
+		D2D1_SIZE_F size = pBackgroundBitmap->GetSize();
 
-		// Draw a bitmap in the upper-left corner of the window.
 		m_pRenderTarget->DrawBitmap(
-			m_pBitmap,
+			pBackgroundBitmap,
 			D2D1::RectF(
-				ceil(renderTargetSize.width / 2) - ceil(size.width / 2), 
+				ceil(renderTargetSize.width / 2) - ceil(size.width / 2),
 				ceil(renderTargetSize.height / 2) - ceil(size.height / 2),
 				ceil(renderTargetSize.width / 2) + ceil(size.width / 2),
 				ceil(renderTargetSize.height / 2) + ceil(size.height / 2))
 		);
+
+		if (showImage)
+		{
+			D2D1_SIZE_F size = m_pBitmap->GetSize();
+
+			// Draw a bitmap in the upper-left corner of the window.
+			m_pRenderTarget->DrawBitmap(
+				m_pBitmap,
+				D2D1::RectF(
+					ceil(renderTargetSize.width / 2) - ceil(size.width / 2),
+					ceil(renderTargetSize.height / 2) - ceil(size.height / 2),
+					ceil(renderTargetSize.width / 2) + ceil(size.width / 2),
+					ceil(renderTargetSize.height / 2) + ceil(size.height / 2))
+			);
+		}
+		
 
 		/*
 		// Draw a bitmap at the lower-right corner of the window.
@@ -762,6 +864,21 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 		{
 			switch (message)
 			{
+			case WM_COMMAND:
+			{
+				int wmId = LOWORD(wParam);
+				// Parse the menu selections:
+				switch (wmId)
+				{
+				case IDM_ABOUT:
+				case IDM_EXIT:
+					DestroyWindow(hwnd);
+					break;
+				default:
+					return DefWindowProc(hwnd, message, wParam, lParam);
+				}
+			}
+			break;
 			case WM_SIZE:
 			{
 				UINT width = LOWORD(lParam);
@@ -772,6 +889,10 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 			wasHandled = true;
 			break;
 
+			case 78:
+			{
+				pMainWindow->showImage = true;
+			}
 			case WM_PAINT:
 			case WM_DISPLAYCHANGE:
 			{
@@ -803,55 +924,4 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 	return result;
 }
 
-HWND MainWindow::CreateToolBar(HWND hWndParent)
-{
-	// Declare and initialize local constants.
-	const int ImageListID = 0;
-	const int numButtons = 3;
-	const int bitmapSize = 16;
 
-	const DWORD buttonStyles = BTNS_AUTOSIZE;
-
-	// Create the toolbar.
-	HWND hWndToolbar = CreateWindowEx(0, TOOLBARCLASSNAME, NULL,
-		WS_CHILD | TBSTYLE_WRAPABLE, 0, 0, 0, 0,
-		hWndParent, NULL, HINST_THISCOMPONENT, NULL);
-
-	if (hWndToolbar == NULL)
-		return NULL;
-
-	// Create the image list.
-	g_hImageList = ImageList_Create(bitmapSize, bitmapSize,   // Dimensions of individual bitmaps.
-		ILC_COLOR16 | ILC_MASK,   // Ensures transparent background.
-		numButtons, 0);
-
-	// Set the image list.
-	SendMessage(hWndToolbar, TB_SETIMAGELIST,
-		(WPARAM)ImageListID,
-		(LPARAM)g_hImageList);
-
-	// Load the button images.
-	SendMessage(hWndToolbar, TB_LOADIMAGES,
-		(WPARAM)IDB_STD_SMALL_COLOR,
-		(LPARAM)HINST_COMMCTRL);
-
-	// Initialize button info.
-	// IDM_NEW, IDM_OPEN, and IDM_SAVE are application-defined command constants.
-
-	TBBUTTON tbButtons[numButtons] =
-	{
-		{ MAKELONG(STD_FILENEW,  ImageListID), 0,  TBSTATE_ENABLED, buttonStyles, {0}, 0, (INT_PTR)L"New" },
-		{ MAKELONG(STD_FILEOPEN, ImageListID), 0, TBSTATE_ENABLED, buttonStyles, {0}, 0, (INT_PTR)L"Open"},
-		{ MAKELONG(STD_FILESAVE, ImageListID), 0, 0,               buttonStyles, {0}, 0, (INT_PTR)L"Save"}
-	};
-
-	// Add buttons.
-	SendMessage(hWndToolbar, TB_BUTTONSTRUCTSIZE, (WPARAM)sizeof(TBBUTTON), 0);
-	SendMessage(hWndToolbar, TB_ADDBUTTONS, (WPARAM)numButtons, (LPARAM)&tbButtons);
-
-	// Resize the toolbar, and then show it.
-	SendMessage(hWndToolbar, TB_AUTOSIZE, 0, 0);
-	ShowWindow(hWndToolbar, TRUE);
-
-	return hWndToolbar;
-}

@@ -34,6 +34,9 @@
 #include <commctrl.h>
 #pragma comment(lib, "comctl32.lib")
 
+#include "Resource.h"
+
+
 /******************************************************************
 *                                                                 *
 *  Macros                                                         *
@@ -94,6 +97,16 @@ public:
 		ID2D1BitmapBrush** ppBitmapBrush
 	);
 
+	HRESULT CreateBlankBackgroundBitmap(
+		ID2D1RenderTarget* pRenderTarget,
+		ID2D1BitmapBrush** ppBitmapBrush
+	);
+
+	HRESULT CreateCircleBrush(
+		ID2D1RenderTarget* pRenderTarget,
+		ID2D1BitmapBrush** ppBitmapBrush
+	);
+
 	void DiscardDeviceResources();
 
 	HRESULT OnRender();
@@ -103,6 +116,7 @@ public:
 		UINT height
 	);
 
+	// Create and load resource file
 	HRESULT LoadResourceBitmap(
 		ID2D1RenderTarget* pRenderTarget,
 		IWICImagingFactory* pIWICFactory,
@@ -122,14 +136,13 @@ public:
 		ID2D1Bitmap** ppBitmap
 	);
 
+
 	// Main window message loop
 	void RunMessageLoop();
 
 	// the WindowProc function prototype
 	static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-	// toolbar
-	HWND CreateToolBar(HWND hWndParent);
 
 private:
 	HWND m_hwnd;
@@ -140,11 +153,17 @@ private:
 	IDWriteTextFormat* m_pTextFormat;
 	ID2D1PathGeometry* m_pPathGeometry;
 	ID2D1LinearGradientBrush* m_pLinearGradientBrush;
+	ID2D1BitmapBrush* m_pBlankBackgroundBrush;
+	ID2D1BitmapBrush* m_pCircleBitmapBrush;
 	ID2D1SolidColorBrush* m_pBlackBrush;
 	ID2D1BitmapBrush* m_pGridPatternBitmapBrush;
 	ID2D1Bitmap* m_pBitmap;
 	ID2D1Bitmap* m_pAnotherBitmap;
 
 	HIMAGELIST g_hImageList = NULL;
+
+	ID2D1Bitmap* pBackgroundBitmap = NULL;
+
+	bool showImage;
 };
 

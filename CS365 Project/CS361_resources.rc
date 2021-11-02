@@ -1,0 +1,31 @@
+// THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF
+// ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+// THE IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A
+// PARTICULAR PURPOSE.
+//
+// Copyright (c) Microsoft Corporation. All rights reserved
+
+#define APSTUDIO_HIDDEN_SYMBOLS
+
+#include "windows.h"
+#include "Resource.h"
+
+SampleImage Image "sampleImage.jpg"
+
+//
+// Menu
+//
+TOOLBAR_DROPDOWN_MENU MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+		MENUITEM "&New"					 NEW
+		MENUITEM "&Open"				 OPEN
+		MENUITEM "&Save"				 SAVE
+        MENUITEM "E&xit",                IDM_EXIT
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "&About ...",           IDM_ABOUT
+    END
+END
