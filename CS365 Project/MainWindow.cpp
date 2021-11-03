@@ -26,6 +26,8 @@ MainWindow::MainWindow() :
 MainWindow::~MainWindow()
 	// Release resources
 {
+	CoUninitialize();
+
 	SafeRelease(&m_pD2DFactory);
 	SafeRelease(&m_pWICFactory);
 	SafeRelease(&m_pDWriteFactory);
@@ -62,6 +64,10 @@ HRESULT MainWindow::Initialize()
 		wcex.lpszClassName = L"CLassApp";
 
 		RegisterClassEx(&wcex);
+
+		// Initialize COM library
+		HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED |
+			COINIT_DISABLE_OLE1DDE);
 
 		// Create the application window.
 		//
@@ -872,44 +878,59 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 				{
 				case OPEN:
 				{
-					HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED |
-						COINIT_DISABLE_OLE1DDE);
+					IFileOpenDialog* pFileOpen;
+
+					// Create the FileOpenDialog object.
+					HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+						IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+
 					if (SUCCEEDED(hr))
 					{
-						IFileOpenDialog* pFileOpen;
+						// Show the Open dialog box.
+						hr = pFileOpen->Show(NULL);
 
-						// Create the FileOpenDialog object.
-						hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
-							IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
-
+						// Get the file name from the dialog box.
 						if (SUCCEEDED(hr))
 						{
-							// Show the Open dialog box.
-							hr = pFileOpen->Show(NULL);
-
-							// Get the file name from the dialog box.
+							IShellItem* pItem;
+							hr = pFileOpen->GetResult(&pItem);
 							if (SUCCEEDED(hr))
 							{
-								IShellItem* pItem;
-								hr = pFileOpen->GetResult(&pItem);
+								PWSTR pszFilePath;
+								hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+
+								// TODO: replace with passing file path to resource loader
+								// Display the file name to the user.
 								if (SUCCEEDED(hr))
 								{
-									PWSTR pszFilePath;
-									hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
-
-									// Display the file name to the user.
-									if (SUCCEEDED(hr))
-									{
-										MessageBoxW(NULL, pszFilePath, L"File Path", MB_OK);
-										CoTaskMemFree(pszFilePath);
-									}
-									pItem->Release();
+									MessageBoxW(NULL, pszFilePath, L"File Path", MB_OK);
+									CoTaskMemFree(pszFilePath);
 								}
+								pItem->Release();
 							}
-							pFileOpen->Release();
 						}
-						CoUninitialize();
+						pFileOpen->Release();
 					}
+					return 0;
+				}
+				case SAVE:
+				{
+					IFileSaveDialog* pFileSave;
+
+					// Create the FileOpenDialog object.
+					HRESULT hr = CoCreateInstance(CLSID_FileSaveDialog, NULL, CLSCTX_ALL,
+						IID_IFileSaveDialog, reinterpret_cast<void**>(&pFileSave));
+
+					if (SUCCEEDED(hr))
+					{
+						// Show the Open dialog box.
+						hr = pFileSave->Show(NULL);
+
+						// TODO: implement save feature
+
+						pFileSave->Release();
+					}
+
 					return 0;
 				}
 				case ABOUT:
