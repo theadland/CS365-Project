@@ -22,10 +22,15 @@ BEGIN
 		MENUITEM "&New"					 NEW
 		MENUITEM "&Open"				 OPEN
 		MENUITEM "&Save"				 SAVE
-        MENUITEM "E&xit",                IDM_EXIT
+        MENUITEM "E&xit",                EXIT
     END
+	POPUP "&Edit"
+	BEGIN
+		MENUITEM "&Filters"				 FILTERS
+		MENUITEM "&Labels"				 LABELS
+	END
     POPUP "&Help"
     BEGIN
-        MENUITEM "&About ...",           IDM_ABOUT
+        MENUITEM "&About ...",           ABOUT
     END
 END

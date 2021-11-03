@@ -1,23 +1,15 @@
+/*
+This file holds defines used to identify resources in the CS362_resources.rc
+file.
+*/
 
-
-#define TOOLBAR_DROPDOWN_MENU   109
-#define IDM_ABOUT				104
-#define IDM_EXIT				105
+#define TOOLBAR_DROPDOWN_MENU   103
+#define ABOUT					104
+#define EXIT					105
 #define NEW						106
 #define OPEN					107
 #define SAVE					108
-
-// Next default values for new objects
-//
-#ifdef APSTUDIO_INVOKED
-#ifndef APSTUDIO_READONLY_SYMBOLS
-
-#define _APS_NO_MFC					130
-#define _APS_NEXT_RESOURCE_VALUE	129
-#define _APS_NEXT_COMMAND_VALUE		32771
-#define _APS_NEXT_CONTROL_VALUE		1000
-#define _APS_NEXT_SYMED_VALUE		110
-#endif
-#endif
+#define FILTERS					109
+#define LABELS					110
 
 // EOF

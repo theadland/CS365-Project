@@ -17,6 +17,7 @@
 #define WIN32_LEAN_AND_MEAN     // Exclude rarely-used stuff from Windows headers
 #include <Windows.h>
 #include <stdexcept>
+#include <shobjidl.h>           //This header is used by Component Object Model (COM), has lots of handy windows templates
 
 // C RunTime Header Files
 #include <stdlib.h>
@@ -25,6 +26,7 @@
 #include <wchar.h>
 #include <math.h>
 
+// Direct2D and stuff
 #include <d2d1_1.h>
 #include <d2d1_1helper.h>
 #include <dwrite.h>

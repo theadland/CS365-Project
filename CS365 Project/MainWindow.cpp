@@ -870,8 +870,50 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 				// Parse the menu selections:
 				switch (wmId)
 				{
-				case IDM_ABOUT:
-				case IDM_EXIT:
+				case OPEN:
+				{
+					HRESULT hr = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED |
+						COINIT_DISABLE_OLE1DDE);
+					if (SUCCEEDED(hr))
+					{
+						IFileOpenDialog* pFileOpen;
+
+						// Create the FileOpenDialog object.
+						hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+							IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+
+						if (SUCCEEDED(hr))
+						{
+							// Show the Open dialog box.
+							hr = pFileOpen->Show(NULL);
+
+							// Get the file name from the dialog box.
+							if (SUCCEEDED(hr))
+							{
+								IShellItem* pItem;
+								hr = pFileOpen->GetResult(&pItem);
+								if (SUCCEEDED(hr))
+								{
+									PWSTR pszFilePath;
+									hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+
+									// Display the file name to the user.
+									if (SUCCEEDED(hr))
+									{
+										MessageBoxW(NULL, pszFilePath, L"File Path", MB_OK);
+										CoTaskMemFree(pszFilePath);
+									}
+									pItem->Release();
+								}
+							}
+							pFileOpen->Release();
+						}
+						CoUninitialize();
+					}
+					return 0;
+				}
+				case ABOUT:
+				case EXIT:
 					DestroyWindow(hwnd);
 					break;
 				default:
