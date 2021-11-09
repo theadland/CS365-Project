@@ -145,7 +145,6 @@ public:
 	// the WindowProc function prototype
 	static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-
 	// microservice functionality
 	void addImageLabel(LPWSTR* pArgList);
 

@@ -478,7 +478,7 @@ HRESULT MainWindow::OnRender()
 		{
 			D2D1_SIZE_F size = m_pBitmap->GetSize();
 
-			// Draw a bitmap in the upper-left corner of the window.
+			// Draw a bitmap in the center of the window.
 			m_pRenderTarget->DrawBitmap(
 				m_pBitmap,
 				D2D1::RectF(
@@ -987,8 +987,15 @@ void MainWindow::addImageLabel(LPWSTR* pArgList)
 	// ----------Independent Resources------------------------------------
 	static const WCHAR msc_fontName[] = L"Verdana";
 	static const FLOAT msc_fontSize = 50;
-	HRESULT hr;
-	ID2D1GeometrySink* pSink = NULL;
+
+	ID2D1Bitmap1* d2dBitmap;
+	IWICImagingFactory2* m_wicFactory2;
+	ID2D1DrawingStateBlock** drawingStateBlock;
+	IWICBitmapEncoder* wicBitmapEncoder;
+	IWICBitmapFrameEncode* wicFrameEncode;
+	IStream* stream;
+	IWICImageEncoder* imageEncoder;
+	ID2D1DeviceContext* d2dContext;
 
 	// Create a Direct2D factory.
 	hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pD2DFactory);
@@ -1002,6 +1009,11 @@ void MainWindow::addImageLabel(LPWSTR* pArgList)
 			IID_IWICImagingFactory,
 			reinterpret_cast<void**>(&m_pWICFactory)
 		);
+
+	}
+	if (SUCCEEDED(hr))
+	{
+		hr = m_pD2DFactory->CreateDrawingStateBlock(drawingStateBlock);
 	}
 	if (SUCCEEDED(hr))
 	{
@@ -1073,6 +1085,43 @@ void MainWindow::addImageLabel(LPWSTR* pArgList)
 			&m_pAnotherBitmap
 		);
 
+		// Create a compatible render target.
+		ID2D1BitmapRenderTarget* pCompatibleRenderTarget = NULL;
+		hr = m_pRenderTarget->CreateCompatibleRenderTarget(
+			D2D1::SizeF(400.0f, 400.0f),
+			&pCompatibleRenderTarget);
+
+		// Draw a rectangle.
+		ID2D1SolidColorBrush* pSolidBrush = NULL;
+		hr = pCompatibleRenderTarget->CreateSolidColorBrush(
+			D2D1::ColorF(D2D1::ColorF::AntiqueWhite),
+			&pSolidBrush
+		);
+
+		// File rendertarget with solid color
+		pCompatibleRenderTarget->BeginDraw();
+		pCompatibleRenderTarget->FillRectangle(D2D1::RectF(0.0f, 0.0f, 400.0f, 400.0f), pSolidBrush);
+		pCompatibleRenderTarget->EndDraw();
+
+		// Save current render target
+		m_pRenderTarget->SaveDrawingState(*drawingStateBlock);
+
+
+		// Create WIC bitmap encoder, frame encoder
+// ----------------TODO: add logic that stores initial file type so can re-encode to that type-------------
+		REFGUID wicFormat = GUID_ContainerFormatJpeg;
+		m_pWICFactory->CreateEncoder(wicFormat, nullptr, &wicBitmapEncoder);
+		wicBitmapEncoder->Initialize(stream, WICBitmapEncoderNoCache);
+		wicBitmapEncoder->CreateNewFrame(&wicFrameEncode, nullptr);
+		wicFrameEncode->Initialize(nullptr);
+
+		ID2D1Device* d2dDevice;
+		d2dContext->GetDevice(&d2dDevice);
+		m_wicFactory2->CreateImageEncoder(d2dDevice, &imageEncoder);
+		imageEncoder->WriteFrame(d2dBitmap, wicFrameEncode, nullptr);
+		wicFrameEncode->Commit();
+		wicBitmapEncoder->Commit();
+		stream->Commit(STGC_DEFAULT);
 }
 
 
