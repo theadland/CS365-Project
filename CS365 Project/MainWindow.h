@@ -146,6 +146,9 @@ public:
 	static LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 
+	// microservice functionality
+	void addImageLabel(LPWSTR* pArgList);
+
 private:
 	HWND m_hwnd;
 	ID2D1Factory* m_pD2DFactory;
