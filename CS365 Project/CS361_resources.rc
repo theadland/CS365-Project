@@ -26,6 +26,7 @@ BEGIN
     END
 	POPUP "&Edit"
 	BEGIN
+		MENUITEM "&Resize"				 RESIZE
 		MENUITEM "&Filters"				 FILTERS
 		MENUITEM "&Labels"				 LABELS
 	END

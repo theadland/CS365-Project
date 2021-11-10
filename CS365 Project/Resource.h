@@ -9,7 +9,8 @@ file.
 #define NEW						106
 #define OPEN					107
 #define SAVE					108
-#define FILTERS					109
-#define LABELS					110
+#define RESIZE					109
+#define FILTERS					110
+#define LABELS					111
 
 // EOF

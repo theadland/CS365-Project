@@ -25,6 +25,7 @@
 #include <memory.h>
 #include <wchar.h>
 #include <math.h>
+#include <sstream>
 
 // Direct2D and stuff
 #include <d2d1_1.h>
@@ -153,6 +154,12 @@ public:
 	// microservice functionality
 	void addImageLabel(LPWSTR* pArgList);
 
+	// call bradleys service
+	void callSubProcess();
+
+
+	bool showWindow;
+
 private:
 	HWND m_hwnd;
 
@@ -176,6 +183,7 @@ private:
 
 	ID2D1Bitmap* m_pBitmap;
 	ID2D1Bitmap* m_pAnotherBitmap;
+	ID2D1Bitmap* m_pSaveBitmap;
 	IWICBitmap* pWICBitmap;
 
 	HIMAGELIST g_hImageList = NULL;
@@ -183,5 +191,6 @@ private:
 	ID2D1Bitmap* pBackgroundBitmap = NULL;
 
 	bool showImage;
+	
 };
 

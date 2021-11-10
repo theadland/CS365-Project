@@ -26,6 +26,7 @@ MainWindow::MainWindow() :
 
 {
 	showImage = false;
+	showWindow = true;
 }
 
 MainWindow::~MainWindow()
@@ -868,8 +869,7 @@ HRESULT MainWindow::SaveBitmapToFile(PCWSTR uri, REFGUID wicFormat)
 
 	IWICStream* pStream = NULL;
 
-	PCWSTR imageFilename = L"testImage";
-
+	PCWSTR imageFilename = L"testImage.bmp";
 
 	if (SUCCEEDED(hr))
 	{
@@ -879,7 +879,7 @@ HRESULT MainWindow::SaveBitmapToFile(PCWSTR uri, REFGUID wicFormat)
 	}
 	hr = m_pRT->EndDraw();
 
-	
+	 
 	if (SUCCEEDED(hr))
 	{
 		hr = m_pWICFactory->CreateStream(&pStream);
@@ -892,7 +892,7 @@ HRESULT MainWindow::SaveBitmapToFile(PCWSTR uri, REFGUID wicFormat)
 	
 	hr = pStream->InitializeFromFilename(imageFilename, GENERIC_WRITE);
 
-	hr = m_pWICFactory->CreateEncoder(GUID_ContainerFormatJpeg, nullptr, &pBitmapEncoder); // -----first param is file format to be user selected
+	hr = m_pWICFactory->CreateEncoder(GUID_ContainerFormatBmp, nullptr, &pBitmapEncoder); // -----first param is file format to be user selected
 	hr = pBitmapEncoder->Initialize(pStream, WICBitmapEncoderNoCache);
 
 	hr = pBitmapEncoder->CreateNewFrame(&pFrameEncode, nullptr);
@@ -928,8 +928,8 @@ void MainWindow::RunMessageLoop()
 
 	while (GetMessage(&msg, NULL, 0, 0))
 	{
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
 	}
 }
 
@@ -1030,6 +1030,12 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 
 					return 0;
 				}
+				case RESIZE:
+				{
+					pMainWindow->callSubProcess();
+
+					return 0;
+				}
 				case ABOUT:
 				case EXIT:
 					DestroyWindow(hwnd);
@@ -1091,6 +1097,43 @@ void MainWindow::addImageLabel(LPWSTR* pArgList)
 	
 
 
+}
+
+void MainWindow::callSubProcess()
+{
+	wchar_t path[] = L"C:/My_Files/School Work/OSU/CS 361 - Software Engineering I/Module 4/Image Manipulator.exe";
+
+	STARTUPINFO si;
+	PROCESS_INFORMATION pi;
+
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+	ZeroMemory(&pi, sizeof(pi));
+
+	// Start the child process. 
+	if (!CreateProcess(NULL,   // No module name (use command line)
+		path,        // Command line
+		NULL,           // Process handle not inheritable
+		NULL,           // Thread handle not inheritable
+		FALSE,          // Set handle inheritance to FALSE
+		0,              // No creation flags
+		NULL,           // Use parent's environment block
+		NULL,           // Use parent's starting directory 
+		&si,            // Pointer to STARTUPINFO structure
+		&pi)           // Pointer to PROCESS_INFORMATION structure
+		)
+	{
+		DWORD lastError = GetLastError();
+		printf("CreateProcess failed (%d).\n", lastError);
+		return;
+	}
+
+	// Wait until child process exits.
+	WaitForSingleObject(pi.hProcess, INFINITE);
+
+	// Close process and thread handles. 
+	CloseHandle(pi.hProcess);
+	CloseHandle(pi.hThread);
 }
 
 
