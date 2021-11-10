@@ -138,6 +138,11 @@ public:
 		ID2D1Bitmap** ppBitmap
 	);
 
+	HRESULT SaveBitmapToFile(
+		PCWSTR uri,
+		REFGUID wicFormat
+		);
+
 
 	// Main window message loop
 	void RunMessageLoop();
@@ -150,10 +155,17 @@ public:
 
 private:
 	HWND m_hwnd;
-	ID2D1Factory* m_pD2DFactory;
+
+	
 	IWICImagingFactory* m_pWICFactory;
+	IWICImagingFactory2* m_pWICFactory2;
+
+	ID2D1DeviceContext* m_d2dContext;
+	ID2D1Factory* m_pD2DFactory;
 	IDWriteFactory* m_pDWriteFactory;
 	ID2D1HwndRenderTarget* m_pRenderTarget;
+	ID2D1DCRenderTarget* m_pDCRenderTarget;
+	ID2D1RenderTarget* m_pRT;
 	IDWriteTextFormat* m_pTextFormat;
 	ID2D1PathGeometry* m_pPathGeometry;
 	ID2D1LinearGradientBrush* m_pLinearGradientBrush;
@@ -161,8 +173,10 @@ private:
 	ID2D1BitmapBrush* m_pCircleBitmapBrush;
 	ID2D1SolidColorBrush* m_pBlackBrush;
 	ID2D1BitmapBrush* m_pGridPatternBitmapBrush;
+
 	ID2D1Bitmap* m_pBitmap;
 	ID2D1Bitmap* m_pAnotherBitmap;
+	IWICBitmap* pWICBitmap;
 
 	HIMAGELIST g_hImageList = NULL;
 

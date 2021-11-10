@@ -4,10 +4,14 @@ MainWindow::MainWindow() :
 	// Initialize members
 
 	m_hwnd(NULL),
+
 	m_pD2DFactory(NULL),
 	m_pWICFactory(NULL),
+	m_pWICFactory2(NULL),
 	m_pDWriteFactory(NULL),
 	m_pRenderTarget(NULL),
+	m_pDCRenderTarget(NULL),
+	m_pRT(NULL),
 	m_pTextFormat(NULL),
 	m_pPathGeometry(NULL),
 	m_pLinearGradientBrush(NULL),
@@ -16,7 +20,8 @@ MainWindow::MainWindow() :
 	m_pBlankBackgroundBrush(NULL),
 	m_pCircleBitmapBrush(NULL),
 	m_pBitmap(NULL),
-	m_pAnotherBitmap(NULL)
+	m_pAnotherBitmap(NULL),
+	pWICBitmap(NULL)
 
 
 {
@@ -216,6 +221,38 @@ HRESULT MainWindow::CreateDeviceResources()
 			D2D1::HwndRenderTargetProperties(m_hwnd, size),
 			&m_pRenderTarget
 		);
+
+		// Create wic bitmap
+		hr = m_pWICFactory->CreateBitmap(
+			size.width,
+			size.height,
+			GUID_WICPixelFormat32bppBGR,
+			WICBitmapCacheOnLoad,
+			&pWICBitmap
+		);
+
+		// Create wic rendertarget
+		hr = m_pD2DFactory->CreateWicBitmapRenderTarget(
+			pWICBitmap,
+			D2D1::RenderTargetProperties(),
+			&m_pRT
+		);
+
+		// Create a D2D device context render target
+		// Create a pixel format and initial its format
+		// and alphaMode fields.
+		D2D1_PIXEL_FORMAT pixelFormat = D2D1::PixelFormat(
+			DXGI_FORMAT_B8G8R8A8_UNORM,
+			D2D1_ALPHA_MODE_PREMULTIPLIED
+		);
+
+		D2D1_RENDER_TARGET_PROPERTIES props = D2D1::RenderTargetProperties();
+		props.pixelFormat = pixelFormat;
+		hr = m_pD2DFactory->CreateDCRenderTarget(
+			&props,
+			&m_pDCRenderTarget
+		);
+
 		if (SUCCEEDED(hr))
 		{
 			// Create a black brush.
@@ -821,6 +858,70 @@ HRESULT MainWindow::LoadBitmapFromFile(ID2D1RenderTarget* pRenderTarget, IWICIma
 	return hr;
 }
 
+HRESULT MainWindow::SaveBitmapToFile(PCWSTR uri, REFGUID wicFormat)
+{
+	HRESULT hr = S_OK;
+
+	IWICBitmapEncoder* pBitmapEncoder = NULL;
+	IWICBitmapFrameEncode* pFrameEncode = NULL;
+	IWICImageEncoder* pImageEncoder = NULL;
+
+	IWICStream* pStream = NULL;
+
+	PCWSTR imageFilename = L"testImage";
+
+
+	if (SUCCEEDED(hr))
+	{
+		m_pRT->BeginDraw();
+		m_pRT->Clear(D2D1::ColorF(D2D1::ColorF::Blue));
+		m_pRT->DrawBitmap(m_pBitmap);
+	}
+	hr = m_pRT->EndDraw();
+
+	
+	if (SUCCEEDED(hr))
+	{
+		hr = m_pWICFactory->CreateStream(&pStream);
+	}
+
+	hr = m_pWICFactory->CreateStream(&pStream);
+
+	// Create WIC bitmap encoder, frame encoder
+// ----------------TODO: add logic that stores initial file type so can re-encode to that type-------------
+	
+	hr = pStream->InitializeFromFilename(imageFilename, GENERIC_WRITE);
+
+	hr = m_pWICFactory->CreateEncoder(GUID_ContainerFormatJpeg, nullptr, &pBitmapEncoder); // -----first param is file format to be user selected
+	hr = pBitmapEncoder->Initialize(pStream, WICBitmapEncoderNoCache);
+
+	hr = pBitmapEncoder->CreateNewFrame(&pFrameEncode, nullptr);
+	hr = pFrameEncode->Initialize(nullptr);
+
+	WICPixelFormatGUID format = GUID_WICPixelFormatDontCare;
+	hr = pFrameEncode->SetPixelFormat(&format);
+
+	hr = pFrameEncode->WriteSource(pWICBitmap, NULL);
+
+	hr = pFrameEncode->Commit();
+
+	hr = pBitmapEncoder->Commit();
+
+	/*
+	ID2D1Device* d2dDevice;
+	d2dContext->GetDevice(&d2dDevice);
+	pIWICFactory2->CreateImageEncoder(d2dDevice, &pImageEncoder);
+
+	pImageEncoder->WriteFrame(pD2dBitmap, pFrameEncode, nullptr);
+	pFrameEncode->Commit();
+	*/
+	
+
+
+
+	return hr;
+}
+
 void MainWindow::RunMessageLoop()
 {
 	MSG msg;
@@ -920,6 +1021,9 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 						hr = pFileSave->Show(NULL);
 
 						// TODO: implement save feature
+						pMainWindow->SaveBitmapToFile(
+							L"C:/Users/thead/Desktop", // ----------------Fix
+							GUID_ContainerFormatJpeg);  // -------------Fix
 
 						pFileSave->Release();
 					}
@@ -984,144 +1088,9 @@ void MainWindow::addImageLabel(LPWSTR* pArgList)
 {
 	HRESULT hr = S_OK;
 
-	// ----------Independent Resources------------------------------------
-	static const WCHAR msc_fontName[] = L"Verdana";
-	static const FLOAT msc_fontSize = 50;
-
-	ID2D1Bitmap1* d2dBitmap;
-	IWICImagingFactory2* m_wicFactory2;
-	ID2D1DrawingStateBlock** drawingStateBlock;
-	IWICBitmapEncoder* wicBitmapEncoder;
-	IWICBitmapFrameEncode* wicFrameEncode;
-	IStream* stream;
-	IWICImageEncoder* imageEncoder;
-	ID2D1DeviceContext* d2dContext;
-
-	// Create a Direct2D factory.
-	hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_pD2DFactory);
-	if (SUCCEEDED(hr))
-	{
-		// Create WIC factory.
-		hr = CoCreateInstance(
-			CLSID_WICImagingFactory,
-			NULL,
-			CLSCTX_INPROC_SERVER,
-			IID_IWICImagingFactory,
-			reinterpret_cast<void**>(&m_pWICFactory)
-		);
-
-	}
-	if (SUCCEEDED(hr))
-	{
-		hr = m_pD2DFactory->CreateDrawingStateBlock(drawingStateBlock);
-	}
-	if (SUCCEEDED(hr))
-	{
-		// Create a DirectWrite factory.
-		hr = DWriteCreateFactory(
-			DWRITE_FACTORY_TYPE_SHARED,
-			__uuidof(m_pDWriteFactory),
-			reinterpret_cast<IUnknown**>(&m_pDWriteFactory)
-		);
-	}
-	if (SUCCEEDED(hr))
-	{
-		// Create a DirectWrite text format object.
-		hr = m_pDWriteFactory->CreateTextFormat(
-			msc_fontName,
-			NULL,
-			DWRITE_FONT_WEIGHT_NORMAL,
-			DWRITE_FONT_STYLE_NORMAL,
-			DWRITE_FONT_STRETCH_NORMAL,
-			msc_fontSize,
-			L"", //locale
-			&m_pTextFormat
-		);
-	}
-	if (SUCCEEDED(hr))
-	{
-		// Center the text horizontally and vertically.
-		m_pTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
-
-		m_pTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-	}
+	
 
 
-	// --------------Device Dependent Resources--------------------------------------
-	if (!m_pRenderTarget)
-	{
-		RECT rc;
-		GetClientRect(m_hwnd, &rc);
-
-		D2D1_SIZE_U size = D2D1::SizeU(
-			static_cast<UINT>(rc.right - rc.left),
-			static_cast<UINT>(rc.bottom - rc.top)
-		);
-
-		// Create a Direct2D render target.
-		hr = m_pD2DFactory->CreateHwndRenderTarget(
-			D2D1::RenderTargetProperties(),
-			D2D1::HwndRenderTargetProperties(m_hwnd, size),
-			&m_pRenderTarget
-		);
-		if (SUCCEEDED(hr))
-		{
-			// Create a black brush.
-			hr = m_pRenderTarget->CreateSolidColorBrush(
-				D2D1::ColorF(D2D1::ColorF::Black),
-				&m_pBlackBrush
-			);
-		}
-
-		}
-
-		// Create a bitmap from file at address given by command line arg.
-		hr = LoadBitmapFromFile(
-			m_pRenderTarget,
-			m_pWICFactory,
-			pArgList[1],
-			100,
-			0,
-			&m_pAnotherBitmap
-		);
-
-		// Create a compatible render target.
-		ID2D1BitmapRenderTarget* pCompatibleRenderTarget = NULL;
-		hr = m_pRenderTarget->CreateCompatibleRenderTarget(
-			D2D1::SizeF(400.0f, 400.0f),
-			&pCompatibleRenderTarget);
-
-		// Draw a rectangle.
-		ID2D1SolidColorBrush* pSolidBrush = NULL;
-		hr = pCompatibleRenderTarget->CreateSolidColorBrush(
-			D2D1::ColorF(D2D1::ColorF::AntiqueWhite),
-			&pSolidBrush
-		);
-
-		// File rendertarget with solid color
-		pCompatibleRenderTarget->BeginDraw();
-		pCompatibleRenderTarget->FillRectangle(D2D1::RectF(0.0f, 0.0f, 400.0f, 400.0f), pSolidBrush);
-		pCompatibleRenderTarget->EndDraw();
-
-		// Save current render target
-		m_pRenderTarget->SaveDrawingState(*drawingStateBlock);
-
-
-		// Create WIC bitmap encoder, frame encoder
-// ----------------TODO: add logic that stores initial file type so can re-encode to that type-------------
-		REFGUID wicFormat = GUID_ContainerFormatJpeg;
-		m_pWICFactory->CreateEncoder(wicFormat, nullptr, &wicBitmapEncoder);
-		wicBitmapEncoder->Initialize(stream, WICBitmapEncoderNoCache);
-		wicBitmapEncoder->CreateNewFrame(&wicFrameEncode, nullptr);
-		wicFrameEncode->Initialize(nullptr);
-
-		ID2D1Device* d2dDevice;
-		d2dContext->GetDevice(&d2dDevice);
-		m_wicFactory2->CreateImageEncoder(d2dDevice, &imageEncoder);
-		imageEncoder->WriteFrame(d2dBitmap, wicFrameEncode, nullptr);
-		wicFrameEncode->Commit();
-		wicBitmapEncoder->Commit();
-		stream->Commit(STGC_DEFAULT);
 }
 
 
