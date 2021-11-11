@@ -1,6 +1,6 @@
-#include "MainWindow.h"
+#include "ImageEditor.h"
 
-MainWindow::MainWindow() :
+ImageEditor::ImageEditor() :
 	// Initialize members
 
 	m_hwnd(NULL),
@@ -29,7 +29,7 @@ MainWindow::MainWindow() :
 	showWindow = true;
 }
 
-MainWindow::~MainWindow()
+ImageEditor::~ImageEditor()
 	// Release resources
 {
 	SafeRelease(&m_pD2DFactory);
@@ -47,18 +47,18 @@ MainWindow::~MainWindow()
 	SafeRelease(&m_pAnotherBitmap);
 }
 
-HRESULT MainWindow::Initialize()
+HRESULT ImageEditor::Initialize()
 {
 	HRESULT hResult;
 
-	hResult = MainWindow::CreateDeviceIndependentResources();
+	hResult = ImageEditor::CreateDeviceIndependentResources();
 
 	if (SUCCEEDED(hResult))
 	{
 		// Register the window class
 		WNDCLASSEX wcex = { sizeof(WNDCLASSEX) };
 		wcex.style = CS_HREDRAW | CS_VREDRAW;
-		wcex.lpfnWndProc = MainWindow::WindowProc;
+		wcex.lpfnWndProc = ImageEditor::WindowProc;
 		wcex.cbClsExtra = 0;
 		wcex.cbWndExtra = sizeof(LONG_PTR);
 		wcex.hInstance = HINST_THISCOMPONENT;
@@ -107,7 +107,7 @@ HRESULT MainWindow::Initialize()
 // DirectWrite, and WIC factories; and a DirectWrite Text Format object
 // (used for identifying particular font characteristics) and
 // a Direct2D geometry.
-HRESULT MainWindow::CreateDeviceIndependentResources()
+HRESULT ImageEditor::CreateDeviceIndependentResources()
 {
 	static const WCHAR msc_fontName[] = L"Verdana";
 	static const FLOAT msc_fontSize = 50;
@@ -202,7 +202,7 @@ HRESULT MainWindow::CreateDeviceIndependentResources()
 	return hr;
 }
 
-HRESULT MainWindow::CreateDeviceResources()
+HRESULT ImageEditor::CreateDeviceResources()
 {
 	HRESULT hr = S_OK;
 
@@ -325,7 +325,7 @@ HRESULT MainWindow::CreateDeviceResources()
 	return hr;
 }
 
-HRESULT MainWindow::CreateGridPatternBrush(ID2D1RenderTarget* pRenderTarget, ID2D1BitmapBrush** ppBitmapBrush)
+HRESULT ImageEditor::CreateGridPatternBrush(ID2D1RenderTarget* pRenderTarget, ID2D1BitmapBrush** ppBitmapBrush)
 {
 	HRESULT hr = S_OK;
 
@@ -374,7 +374,7 @@ HRESULT MainWindow::CreateGridPatternBrush(ID2D1RenderTarget* pRenderTarget, ID2
 	return hr;
 }
 
-HRESULT MainWindow::CreateBlankBackgroundBitmap(ID2D1RenderTarget* pRenderTarget, ID2D1BitmapBrush** ppBitmapBrush)
+HRESULT ImageEditor::CreateBlankBackgroundBitmap(ID2D1RenderTarget* pRenderTarget, ID2D1BitmapBrush** ppBitmapBrush)
 {
 	HRESULT hr = S_OK;
 
@@ -402,7 +402,7 @@ HRESULT MainWindow::CreateBlankBackgroundBitmap(ID2D1RenderTarget* pRenderTarget
 	return hr;
 }
 
-HRESULT MainWindow::CreateCircleBrush(ID2D1RenderTarget* pRenderTarget, ID2D1BitmapBrush** ppBitmapBrush)
+HRESULT ImageEditor::CreateCircleBrush(ID2D1RenderTarget* pRenderTarget, ID2D1BitmapBrush** ppBitmapBrush)
 {
 	HRESULT hr = S_OK;
 
@@ -456,7 +456,7 @@ HRESULT MainWindow::CreateCircleBrush(ID2D1RenderTarget* pRenderTarget, ID2D1Bit
 
 //  Discard device-specific resources which need to be recreated
 //  when a Direct3D device is lost
-void MainWindow::DiscardDeviceResources()
+void ImageEditor::DiscardDeviceResources()
 {
 	SafeRelease(&m_pRenderTarget);
 	SafeRelease(&m_pBitmap);
@@ -476,7 +476,7 @@ void MainWindow::DiscardDeviceResources()
 //  resources if the Direct3D device disappears during function
 //  invocation, and will recreate the resources the next time it's
 //  invoked.
-HRESULT MainWindow::OnRender()
+HRESULT ImageEditor::OnRender()
 {
 	HRESULT hr;
 
@@ -584,7 +584,7 @@ HRESULT MainWindow::OnRender()
 
 //  If the application receives a WM_SIZE message, this method
 //  resize the render target appropriately.
-void MainWindow::OnResize(UINT width, UINT height)
+void ImageEditor::OnResize(UINT width, UINT height)
 {
 	if (m_pRenderTarget)
 	{
@@ -599,7 +599,7 @@ void MainWindow::OnResize(UINT width, UINT height)
 	}
 }
 
-HRESULT MainWindow::LoadResourceBitmap(
+HRESULT ImageEditor::LoadResourceBitmap(
 	ID2D1RenderTarget* pRenderTarget, 
 	IWICImagingFactory* pIWICFactory, 
 	PCWSTR resourceName, 
@@ -754,7 +754,7 @@ HRESULT MainWindow::LoadResourceBitmap(
 	return hr;
 }
 
-HRESULT MainWindow::LoadBitmapFromFile(ID2D1RenderTarget* pRenderTarget, IWICImagingFactory* pIWICFactory, PCWSTR uri, UINT destinationWidth, UINT destinationHeight, ID2D1Bitmap** ppBitmap)
+HRESULT ImageEditor::LoadBitmapFromFile(ID2D1RenderTarget* pRenderTarget, IWICImagingFactory* pIWICFactory, PCWSTR uri, UINT destinationWidth, UINT destinationHeight, ID2D1Bitmap** ppBitmap)
 {
 	HRESULT hr = S_OK;
 
@@ -859,7 +859,7 @@ HRESULT MainWindow::LoadBitmapFromFile(ID2D1RenderTarget* pRenderTarget, IWICIma
 	return hr;
 }
 
-HRESULT MainWindow::SaveBitmapToFile(PCWSTR uri, REFGUID wicFormat)
+HRESULT ImageEditor::SaveBitmapToFile(PCWSTR uri, REFGUID wicFormat)
 {
 	HRESULT hr = S_OK;
 
@@ -922,7 +922,7 @@ HRESULT MainWindow::SaveBitmapToFile(PCWSTR uri, REFGUID wicFormat)
 	return hr;
 }
 
-void MainWindow::RunMessageLoop()
+void ImageEditor::RunMessageLoop()
 {
 	MSG msg;
 
@@ -933,14 +933,14 @@ void MainWindow::RunMessageLoop()
 	}
 }
 
-LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT ImageEditor::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	LRESULT result = 0;
 
 	if (message == WM_CREATE)
 	{
 		LPCREATESTRUCT pcs = (LPCREATESTRUCT)lParam;
-		MainWindow* pMainWindow = (MainWindow*)pcs->lpCreateParams;
+		ImageEditor* pMainWindow = (ImageEditor*)pcs->lpCreateParams;
 
 		::SetWindowLongPtrW(
 			hwnd,
@@ -952,7 +952,7 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 	}
 	else
 	{
-		MainWindow* pMainWindow = reinterpret_cast<MainWindow*>(
+		ImageEditor* pMainWindow = reinterpret_cast<ImageEditor*>(
 			::GetWindowLongPtrW(
 				hwnd,
 				GWLP_USERDATA
@@ -1090,7 +1090,7 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 	return result;
 }
 
-void MainWindow::addImageLabel(LPWSTR* pArgList)
+void ImageEditor::addImageLabel(LPWSTR* pArgList)
 {
 	HRESULT hr = S_OK;
 
@@ -1099,7 +1099,7 @@ void MainWindow::addImageLabel(LPWSTR* pArgList)
 
 }
 
-void MainWindow::callSubProcess()
+void ImageEditor::callSubProcess()
 {
 	wchar_t path[] = L"C:/My_Files/School Work/OSU/CS 361 - Software Engineering I/Module 4/Image Manipulator.exe";
 

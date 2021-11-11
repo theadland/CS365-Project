@@ -76,15 +76,15 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 
 /******************************************************************
 *                                                                 *
-*  MainWindow                                                     *
+*  ImageEditor                                                     *
 *                                                                 *
 ******************************************************************/
 
-class MainWindow
+class ImageEditor
 {
 public:
-	MainWindow();
-	~MainWindow();
+	ImageEditor();
+	~ImageEditor();
 
 	// Create application window and initialize device-indedendent resources
 	HRESULT Initialize();
