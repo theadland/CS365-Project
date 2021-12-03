@@ -1,6 +1,6 @@
-#include "MainWindow.h"
+#include "ImageEditor.h"
 
-MainWindow::MainWindow() :
+ImageEditor::ImageEditor() :
 	// Initialize members
 
 	m_hwnd(NULL),
@@ -9,9 +9,11 @@ MainWindow::MainWindow() :
 	m_pWICFactory(NULL),
 	m_pWICFactory2(NULL),
 	m_pDWriteFactory(NULL),
+
 	m_pRenderTarget(NULL),
 	m_pDCRenderTarget(NULL),
-	m_pRT(NULL),
+	m_pWICRenderTarget(NULL),
+
 	m_pTextFormat(NULL),
 	m_pPathGeometry(NULL),
 	m_pLinearGradientBrush(NULL),
@@ -19,17 +21,18 @@ MainWindow::MainWindow() :
 	m_pGridPatternBitmapBrush(NULL),
 	m_pBlankBackgroundBrush(NULL),
 	m_pCircleBitmapBrush(NULL),
+
+	m_pDisplayBitmap(NULL),
 	m_pBitmap(NULL),
 	m_pAnotherBitmap(NULL),
-	pWICBitmap(NULL)
-
+	m_pWICBitmap(NULL)
 
 {
 	showImage = false;
 	showWindow = true;
 }
 
-MainWindow::~MainWindow()
+ImageEditor::~ImageEditor()
 	// Release resources
 {
 	SafeRelease(&m_pD2DFactory);
@@ -47,18 +50,20 @@ MainWindow::~MainWindow()
 	SafeRelease(&m_pAnotherBitmap);
 }
 
-HRESULT MainWindow::Initialize()
+HRESULT ImageEditor::Initialize()
 {
-	HRESULT hResult;
+	HRESULT hr;
 
-	hResult = MainWindow::CreateDeviceIndependentResources();
+	hr = ImageEditor::CreateDeviceIndependentResources();
 
-	if (SUCCEEDED(hResult))
+	
+
+	if (SUCCEEDED(hr))
 	{
 		// Register the window class
 		WNDCLASSEX wcex = { sizeof(WNDCLASSEX) };
 		wcex.style = CS_HREDRAW | CS_VREDRAW;
-		wcex.lpfnWndProc = MainWindow::WindowProc;
+		wcex.lpfnWndProc = ImageEditor::WindowProc;
 		wcex.cbClsExtra = 0;
 		wcex.cbWndExtra = sizeof(LONG_PTR);
 		wcex.hInstance = HINST_THISCOMPONENT;
@@ -89,16 +94,21 @@ HRESULT MainWindow::Initialize()
 			this
 		);
 
+		// Currently, resource parameters based on client size
+		hr = ImageEditor::CreateDeviceResources();
+
+		ImageEditor::DrawInitialBlankCanvas(m_pWICRenderTarget);
+
 		// Show window if created successfully
-		hResult = m_hwnd ? S_OK : E_FAIL;
-		if (SUCCEEDED(hResult))
+		hr = m_hwnd ? S_OK : E_FAIL;
+		if (SUCCEEDED(hr))
 		{
 			ShowWindow(m_hwnd, SW_SHOWNORMAL);
 			UpdateWindow(m_hwnd);
 		}
 	}
 
-	return hResult;
+	return hr;
 }
 
 // Create resources which are not bound
@@ -107,7 +117,7 @@ HRESULT MainWindow::Initialize()
 // DirectWrite, and WIC factories; and a DirectWrite Text Format object
 // (used for identifying particular font characteristics) and
 // a Direct2D geometry.
-HRESULT MainWindow::CreateDeviceIndependentResources()
+HRESULT ImageEditor::CreateDeviceIndependentResources()
 {
 	static const WCHAR msc_fontName[] = L"Verdana";
 	static const FLOAT msc_fontSize = 50;
@@ -156,53 +166,13 @@ HRESULT MainWindow::CreateDeviceIndependentResources()
 		m_pTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
 
 		m_pTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-
-		// Create a path geometry.
-		hr = m_pD2DFactory->CreatePathGeometry(&m_pPathGeometry);
-	}
-	if (SUCCEEDED(hr))
-	{
-		// Use the geometry sink to write to the path geometry.
-		hr = m_pPathGeometry->Open(&pSink);
-	}
-	if (SUCCEEDED(hr))
-	{
-		pSink->SetFillMode(D2D1_FILL_MODE_ALTERNATE);
-
-		pSink->BeginFigure(
-			D2D1::Point2F(0, 0),
-			D2D1_FIGURE_BEGIN_FILLED
-		);
-
-		pSink->AddLine(D2D1::Point2F(200, 0));
-
-		pSink->AddBezier(
-			D2D1::BezierSegment(
-				D2D1::Point2F(150, 50),
-				D2D1::Point2F(150, 150),
-				D2D1::Point2F(200, 200))
-		);
-
-		pSink->AddLine(D2D1::Point2F(0, 200));
-
-		pSink->AddBezier(
-			D2D1::BezierSegment(
-				D2D1::Point2F(50, 150),
-				D2D1::Point2F(50, 50),
-				D2D1::Point2F(0, 0))
-		);
-
-		pSink->EndFigure(D2D1_FIGURE_END_CLOSED);
-
-		hr = pSink->Close();
 	}
 
-	SafeRelease(&pSink);
 
 	return hr;
 }
 
-HRESULT MainWindow::CreateDeviceResources()
+HRESULT ImageEditor::CreateDeviceResources()
 {
 	HRESULT hr = S_OK;
 
@@ -216,42 +186,43 @@ HRESULT MainWindow::CreateDeviceResources()
 			static_cast<UINT>(rc.bottom - rc.top)
 		);
 
-		// Create a Direct2D render target.
-		hr = m_pD2DFactory->CreateHwndRenderTarget(
-			D2D1::RenderTargetProperties(),
-			D2D1::HwndRenderTargetProperties(m_hwnd, size),
-			&m_pRenderTarget
-		);
-
-		// Create wic bitmap
-		hr = m_pWICFactory->CreateBitmap(
-			size.width,
-			size.height,
-			GUID_WICPixelFormat32bppBGR,
-			WICBitmapCacheOnLoad,
-			&pWICBitmap
-		);
-
-		// Create wic rendertarget
-		hr = m_pD2DFactory->CreateWicBitmapRenderTarget(
-			pWICBitmap,
-			D2D1::RenderTargetProperties(),
-			&m_pRT
-		);
-
-		// Create a D2D device context render target
-		// Create a pixel format and initial its format
-		// and alphaMode fields.
+		// Create a pixel format and initial its format and alphaMode fields.
+		//  - compatible with GUID_WICPixelFormat32bppPBGRA
 		D2D1_PIXEL_FORMAT pixelFormat = D2D1::PixelFormat(
 			DXGI_FORMAT_B8G8R8A8_UNORM,
 			D2D1_ALPHA_MODE_PREMULTIPLIED
 		);
 
+		UINT dpi = GetDpiForSystem();
+
 		D2D1_RENDER_TARGET_PROPERTIES props = D2D1::RenderTargetProperties();
+		props.usage = D2D1_RENDER_TARGET_USAGE_FORCE_BITMAP_REMOTING;
+		props.type = D2D1_RENDER_TARGET_TYPE_SOFTWARE;							// This type required for sharing resources between different render targets
 		props.pixelFormat = pixelFormat;
-		hr = m_pD2DFactory->CreateDCRenderTarget(
-			&props,
-			&m_pDCRenderTarget
+		props.dpiX = dpi;
+		props.dpiY = dpi;
+
+		// Create a Direct2D Hwnd render target.
+		hr = m_pD2DFactory->CreateHwndRenderTarget(
+			props,
+			D2D1::HwndRenderTargetProperties(m_hwnd, size),
+			&m_pRenderTarget
+		);
+
+		// Create WIC bitmap to be used as render target
+		hr = m_pWICFactory->CreateBitmap(
+			size.width,
+			size.height,
+			GUID_WICPixelFormat32bppPBGRA,
+			WICBitmapCacheOnLoad,
+			&m_pWICBitmap
+		);
+
+		// Create WIC rendertarget
+		hr = m_pD2DFactory->CreateWicBitmapRenderTarget(
+			m_pWICBitmap,
+			props,
+			&m_pWICRenderTarget
 		);
 
 		if (SUCCEEDED(hr))
@@ -317,7 +288,6 @@ HRESULT MainWindow::CreateDeviceResources()
 		if (SUCCEEDED(hr))
 		{
 			hr = CreateGridPatternBrush(m_pRenderTarget, &m_pGridPatternBitmapBrush);
-			hr = CreateBlankBackgroundBitmap(m_pRenderTarget, &m_pBlankBackgroundBrush);
 			hr = CreateCircleBrush(m_pRenderTarget, &m_pCircleBitmapBrush);
 		}
 	}
@@ -325,7 +295,7 @@ HRESULT MainWindow::CreateDeviceResources()
 	return hr;
 }
 
-HRESULT MainWindow::CreateGridPatternBrush(ID2D1RenderTarget* pRenderTarget, ID2D1BitmapBrush** ppBitmapBrush)
+HRESULT ImageEditor::CreateGridPatternBrush(ID2D1RenderTarget* pRenderTarget, ID2D1BitmapBrush** ppBitmapBrush)
 {
 	HRESULT hr = S_OK;
 
@@ -374,8 +344,10 @@ HRESULT MainWindow::CreateGridPatternBrush(ID2D1RenderTarget* pRenderTarget, ID2
 	return hr;
 }
 
-HRESULT MainWindow::CreateBlankBackgroundBitmap(ID2D1RenderTarget* pRenderTarget, ID2D1BitmapBrush** ppBitmapBrush)
+HRESULT ImageEditor::DrawInitialBlankCanvas(ID2D1RenderTarget* pRenderTarget)
 {
+	ID2D1Bitmap* pTempBitmap = NULL;
+
 	HRESULT hr = S_OK;
 
 	// Create a compatible render target.
@@ -397,12 +369,19 @@ HRESULT MainWindow::CreateBlankBackgroundBitmap(ID2D1RenderTarget* pRenderTarget
 	pCompatibleRenderTarget->EndDraw();
 
 	// Retrieve the bitmap from the render target.
-	hr = pCompatibleRenderTarget->GetBitmap(&pBackgroundBitmap);
+	hr = pCompatibleRenderTarget->GetBitmap(&pTempBitmap);
+
+	// Draw blank canvas bitmap to WIC bitmap
+	m_pWICRenderTarget->BeginDraw();
+	m_pWICRenderTarget->DrawBitmap(pTempBitmap);
+	hr = m_pWICRenderTarget->EndDraw();
+
+	hr = m_pWICRenderTarget->CreateBitmapFromWicBitmap(m_pWICBitmap, &m_pDisplayBitmap);
 
 	return hr;
 }
 
-HRESULT MainWindow::CreateCircleBrush(ID2D1RenderTarget* pRenderTarget, ID2D1BitmapBrush** ppBitmapBrush)
+HRESULT ImageEditor::CreateCircleBrush(ID2D1RenderTarget* pRenderTarget, ID2D1BitmapBrush** ppBitmapBrush)
 {
 	HRESULT hr = S_OK;
 
@@ -456,7 +435,7 @@ HRESULT MainWindow::CreateCircleBrush(ID2D1RenderTarget* pRenderTarget, ID2D1Bit
 
 //  Discard device-specific resources which need to be recreated
 //  when a Direct3D device is lost
-void MainWindow::DiscardDeviceResources()
+void ImageEditor::DiscardDeviceResources()
 {
 	SafeRelease(&m_pRenderTarget);
 	SafeRelease(&m_pBitmap);
@@ -476,11 +455,9 @@ void MainWindow::DiscardDeviceResources()
 //  resources if the Direct3D device disappears during function
 //  invocation, and will recreate the resources the next time it's
 //  invoked.
-HRESULT MainWindow::OnRender()
+HRESULT ImageEditor::OnRender()
 {
-	HRESULT hr;
-
-	hr = CreateDeviceResources();
+	HRESULT hr = S_OK;
 
 	if (SUCCEEDED(hr) && !(m_pRenderTarget->CheckWindowState() & D2D1_WINDOW_STATE_OCCLUDED))
 	{
@@ -501,15 +478,8 @@ HRESULT MainWindow::OnRender()
 		);
 
 		// Paint the initial blank image background.
-		D2D1_SIZE_F size = pBackgroundBitmap->GetSize();
-
 		m_pRenderTarget->DrawBitmap(
-			pBackgroundBitmap,
-			D2D1::RectF(
-				ceil(renderTargetSize.width / 2) - ceil(size.width / 2),
-				ceil(renderTargetSize.height / 2) - ceil(size.height / 2),
-				ceil(renderTargetSize.width / 2) + ceil(size.width / 2),
-				ceil(renderTargetSize.height / 2) + ceil(size.height / 2))
+			m_pDisplayBitmap
 		);
 
 		if (showImage)
@@ -526,32 +496,6 @@ HRESULT MainWindow::OnRender()
 					ceil(renderTargetSize.height / 2) + ceil(size.height / 2))
 			);
 		}
-		
-
-		/*
-		// Draw a bitmap at the lower-right corner of the window.
-		size = m_pAnotherBitmap->GetSize();
-		m_pRenderTarget->DrawBitmap(
-			m_pAnotherBitmap,
-			D2D1::RectF(
-				renderTargetSize.width - size.width,
-				renderTargetSize.height - size.height,
-				renderTargetSize.width,
-				renderTargetSize.height)
-		);
-		*/
-
-		/*
-		// Set the world transform to a 45 degree rotation at the center of the render target
-		// and write "Hello, World".
-		m_pRenderTarget->SetTransform(
-			D2D1::Matrix3x2F::Rotation(
-				45,
-				D2D1::Point2F(
-					renderTargetSize.width / 2,
-					renderTargetSize.height / 2))
-		);
-		*/
 
 		m_pRenderTarget->SetTransform(
 			D2D1::Matrix3x2F::Translation(0, renderTargetSize.height / 4)
@@ -584,7 +528,7 @@ HRESULT MainWindow::OnRender()
 
 //  If the application receives a WM_SIZE message, this method
 //  resize the render target appropriately.
-void MainWindow::OnResize(UINT width, UINT height)
+void ImageEditor::OnResize(UINT width, UINT height)
 {
 	if (m_pRenderTarget)
 	{
@@ -599,7 +543,7 @@ void MainWindow::OnResize(UINT width, UINT height)
 	}
 }
 
-HRESULT MainWindow::LoadResourceBitmap(
+HRESULT ImageEditor::LoadResourceBitmap(
 	ID2D1RenderTarget* pRenderTarget, 
 	IWICImagingFactory* pIWICFactory, 
 	PCWSTR resourceName, 
@@ -754,7 +698,7 @@ HRESULT MainWindow::LoadResourceBitmap(
 	return hr;
 }
 
-HRESULT MainWindow::LoadBitmapFromFile(ID2D1RenderTarget* pRenderTarget, IWICImagingFactory* pIWICFactory, PCWSTR uri, UINT destinationWidth, UINT destinationHeight, ID2D1Bitmap** ppBitmap)
+HRESULT ImageEditor::LoadBitmapFromFile(ID2D1RenderTarget* pRenderTarget, IWICImagingFactory* pIWICFactory, PCWSTR uri, UINT destinationWidth, UINT destinationHeight, ID2D1Bitmap** ppBitmap)
 {
 	HRESULT hr = S_OK;
 
@@ -848,6 +792,8 @@ HRESULT MainWindow::LoadBitmapFromFile(ID2D1RenderTarget* pRenderTarget, IWICIma
 			NULL,
 			ppBitmap
 		);
+		bool success;
+		success = UpdateWindow(m_hwnd);
 	}
 
 	SafeRelease(&pDecoder);
@@ -859,7 +805,7 @@ HRESULT MainWindow::LoadBitmapFromFile(ID2D1RenderTarget* pRenderTarget, IWICIma
 	return hr;
 }
 
-HRESULT MainWindow::SaveBitmapToFile(PCWSTR uri, REFGUID wicFormat)
+HRESULT ImageEditor::SaveBitmapToFile(PCWSTR uri, REFGUID wicFormat)
 {
 	HRESULT hr = S_OK;
 
@@ -873,11 +819,11 @@ HRESULT MainWindow::SaveBitmapToFile(PCWSTR uri, REFGUID wicFormat)
 
 	if (SUCCEEDED(hr))
 	{
-		m_pRT->BeginDraw();
-		m_pRT->Clear(D2D1::ColorF(D2D1::ColorF::Blue));
-		m_pRT->DrawBitmap(m_pBitmap);
+		m_pWICRenderTarget->BeginDraw();
+		m_pWICRenderTarget->Clear(D2D1::ColorF(D2D1::ColorF::Blue));
+		m_pWICRenderTarget->DrawBitmap(m_pBitmap);
 	}
-	hr = m_pRT->EndDraw();
+	hr = m_pWICRenderTarget->EndDraw();
 
 	 
 	if (SUCCEEDED(hr))
@@ -901,28 +847,45 @@ HRESULT MainWindow::SaveBitmapToFile(PCWSTR uri, REFGUID wicFormat)
 	WICPixelFormatGUID format = GUID_WICPixelFormatDontCare;
 	hr = pFrameEncode->SetPixelFormat(&format);
 
-	hr = pFrameEncode->WriteSource(pWICBitmap, NULL);
+	hr = pFrameEncode->WriteSource(m_pWICBitmap, NULL);
 
 	hr = pFrameEncode->Commit();
 
 	hr = pBitmapEncoder->Commit();
 
-	/*
-	ID2D1Device* d2dDevice;
-	d2dContext->GetDevice(&d2dDevice);
-	pIWICFactory2->CreateImageEncoder(d2dDevice, &pImageEncoder);
-
-	pImageEncoder->WriteFrame(pD2dBitmap, pFrameEncode, nullptr);
-	pFrameEncode->Commit();
-	*/
-	
-
-
-
 	return hr;
 }
 
-void MainWindow::RunMessageLoop()
+PWSTR ImageEditor::GetFilePathFromOpenWindow()
+{
+	IFileOpenDialog* pFileOpen;
+
+	// Create the FileOpenDialog object.
+	HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
+		IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+
+
+	// Show the Open dialog box.
+	hr = pFileOpen->Show(NULL);
+
+	// Get the file name from the dialog box.
+	IShellItem* pItem;
+	hr = pFileOpen->GetResult(&pItem);
+
+	PWSTR pszFilePath = nullptr;
+	if (SUCCEEDED(hr))
+	{
+		hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+	}
+
+	pItem->Release();
+
+	pFileOpen->Release();
+
+	return pszFilePath;
+}
+
+void ImageEditor::RunMessageLoop()
 {
 	MSG msg;
 
@@ -933,26 +896,26 @@ void MainWindow::RunMessageLoop()
 	}
 }
 
-LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT ImageEditor::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	LRESULT result = 0;
 
 	if (message == WM_CREATE)
 	{
 		LPCREATESTRUCT pcs = (LPCREATESTRUCT)lParam;
-		MainWindow* pMainWindow = (MainWindow*)pcs->lpCreateParams;
+		ImageEditor* pImageEditor = (ImageEditor*)pcs->lpCreateParams;
 
 		::SetWindowLongPtrW(
 			hwnd,
 			GWLP_USERDATA,
-			reinterpret_cast<LONG_PTR>(pMainWindow)
+			reinterpret_cast<LONG_PTR>(pImageEditor)
 		);
 
 		result = 1;
 	}
 	else
 	{
-		MainWindow* pMainWindow = reinterpret_cast<MainWindow*>(
+		ImageEditor* pImageEditor = reinterpret_cast<ImageEditor*>(
 			::GetWindowLongPtrW(
 				hwnd,
 				GWLP_USERDATA
@@ -960,7 +923,7 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 
 		bool wasHandled = false;
 
-		if (pMainWindow)
+		if (pImageEditor)
 		{
 			switch (message)
 			{
@@ -972,41 +935,36 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 				{
 				case OPEN:
 				{
-					IFileOpenDialog* pFileOpen;
+					// Get file path of image to open from user
+					PWSTR filePath = pImageEditor->GetFilePathFromOpenWindow();
 
-					// Create the FileOpenDialog object.
-					HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, NULL, CLSCTX_ALL,
-						IID_IFileOpenDialog, reinterpret_cast<void**>(&pFileOpen));
+					// ---------------------------------TODO-------------------------------!!!
+					// --create class to hold multiple bitmaps loaded from file
+					// Load bitmap to output bitmap
+					pImageEditor->LoadBitmapFromFile(
+						pImageEditor->m_pWICRenderTarget,
+						pImageEditor->m_pWICFactory,
+						filePath,
+						0,
+						0,
+						&pImageEditor->m_pDisplayBitmap
+					);
 
-					if (SUCCEEDED(hr))
-					{
-						// Show the Open dialog box.
-						hr = pFileOpen->Show(NULL);
-
-						// Get the file name from the dialog box.
-						if (SUCCEEDED(hr))
-						{
-							IShellItem* pItem;
-							hr = pFileOpen->GetResult(&pItem);
-							if (SUCCEEDED(hr))
-							{
-								PWSTR pszFilePath;
-								hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
-
-								// TODO: replace with passing file path to resource loader
-								// Display the file name to the user.
-								if (SUCCEEDED(hr))
-								{
-									MessageBoxW(NULL, pszFilePath, L"File Path", MB_OK);
-									CoTaskMemFree(pszFilePath);
-								}
-								pItem->Release();
-							}
-						}
-						pFileOpen->Release();
-					}
-					return 0;
+					bool success;
+					success = UpdateWindow(hwnd);
+					PostMessage(hwnd, WM_COMMAND, 78, 78);
 				}
+				case WM_PAINT:
+				case WM_DISPLAYCHANGE:
+				{
+					PAINTSTRUCT ps;
+					BeginPaint(hwnd, &ps);
+					pImageEditor->OnRender();
+					EndPaint(hwnd, &ps);
+				}
+				result = 0;
+				wasHandled = true;
+				break;
 				case SAVE:
 				{
 					IFileSaveDialog* pFileSave;
@@ -1021,7 +979,7 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 						hr = pFileSave->Show(NULL);
 
 						// TODO: implement save feature
-						pMainWindow->SaveBitmapToFile(
+						pImageEditor->SaveBitmapToFile(
 							L"C:/Users/thead/Desktop", // ----------------Fix
 							GUID_ContainerFormatJpeg);  // -------------Fix
 
@@ -1032,7 +990,7 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 				}
 				case RESIZE:
 				{
-					pMainWindow->callSubProcess();
+					pImageEditor->callSubProcess();
 
 					return 0;
 				}
@@ -1049,22 +1007,18 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 			{
 				UINT width = LOWORD(lParam);
 				UINT height = HIWORD(lParam);
-				pMainWindow->OnResize(width, height);
+				pImageEditor->OnResize(width, height);
 			}
 			result = 0;
 			wasHandled = true;
 			break;
 
-			case 78:
-			{
-				pMainWindow->showImage = true;
-			}
 			case WM_PAINT:
 			case WM_DISPLAYCHANGE:
 			{
 				PAINTSTRUCT ps;
 				BeginPaint(hwnd, &ps);
-				pMainWindow->OnRender();
+				pImageEditor->OnRender();
 				EndPaint(hwnd, &ps);
 			}
 			result = 0;
@@ -1090,7 +1044,7 @@ LRESULT MainWindow::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lP
 	return result;
 }
 
-void MainWindow::addImageLabel(LPWSTR* pArgList)
+void ImageEditor::addImageLabel(LPWSTR* pArgList)
 {
 	HRESULT hr = S_OK;
 
@@ -1099,7 +1053,7 @@ void MainWindow::addImageLabel(LPWSTR* pArgList)
 
 }
 
-void MainWindow::callSubProcess()
+void ImageEditor::callSubProcess()
 {
 	wchar_t path[] = L"C:/My_Files/School Work/OSU/CS 361 - Software Engineering I/Module 4/Image Manipulator.exe";
 

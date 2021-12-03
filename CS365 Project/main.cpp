@@ -1,7 +1,7 @@
 
 #include <Windows.h>
 #include <shellapi.h>
-#include "MainWindow.h"
+#include "ImageEditor.h"
 
 
 // the entry point for any Windows program
@@ -19,12 +19,12 @@ int WINAPI wWinMain(HINSTANCE hInstance,
 	if (SUCCEEDED(CoInitialize(NULL))) // Initialize Windows COM library
 	{
 		{
-			MainWindow mainWindow;
+			ImageEditor imageEditor;
 
-			if (SUCCEEDED(mainWindow.Initialize()))
+			if (SUCCEEDED(imageEditor.Initialize()))
 			{
-				mainWindow.RunMessageLoop();
-				//mainWindow.SaveBitmapToFile(L"testString", GUID_ContainerFormatJpeg);
+				imageEditor.RunMessageLoop();
+				//imageEditor.SaveBitmapToFile(L"testString", GUID_ContainerFormatJpeg);
 			}
 		}
 		CoUninitialize(); // Unitialize Windows COM library
