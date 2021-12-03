@@ -19,12 +19,12 @@ int WINAPI wWinMain(HINSTANCE hInstance,
 	if (SUCCEEDED(CoInitialize(NULL))) // Initialize Windows COM library
 	{
 		{
-			ImageEditor mainWindow;
+			ImageEditor imageEditor;
 
-			if (SUCCEEDED(mainWindow.Initialize()))
+			if (SUCCEEDED(imageEditor.Initialize()))
 			{
-				mainWindow.RunMessageLoop();
-				//mainWindow.SaveBitmapToFile(L"testString", GUID_ContainerFormatJpeg);
+				imageEditor.RunMessageLoop();
+				//imageEditor.SaveBitmapToFile(L"testString", GUID_ContainerFormatJpeg);
 			}
 		}
 		CoUninitialize(); // Unitialize Windows COM library
